@@ -1,0 +1,68 @@
+// VideoManager.js
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, Alert } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Permissions from 'expo-permissions';
+import MMKV from 'react-native-mmkv';
+import { Video } from 'react-native-video';
+
+// Initialize MMKV before using it
+MMKV.initialize();
+
+const VideoManager = () => {
+  const [videoPath, setVideoPath] = useState('');
+
+  useEffect(() => {
+    // Load the video path from MMKV when the component mounts
+    const storedVideoPath = MMKV.getString('videoPath');
+    setVideoPath(storedVideoPath || '');
+  }, []);
+
+  const saveVideoLink = async () => {
+    try {
+      // Download the video
+      const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+      if (status === 'granted') {
+        const downloadOptions = {
+          fileCache: true,
+          path: FileSystem.documentDirectory + 'downloadedVideo.mp4',
+        };
+        const downloadedFile = await FileSystem.downloadAsync(
+          'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          downloadOptions
+        );
+
+        // Save the video path to MMKV
+        MMKV.set('videoPath', downloadedFile.uri);
+        setVideoPath(downloadedFile.uri);
+
+        Alert.alert('Video Downloaded and Stored Successfully!');
+      } else {
+        Alert.alert('Permission to access camera roll denied.');
+      }
+    } catch (error) {
+      console.error('Error downloading video:', error);
+      Alert.alert('Error downloading video. Please try again.');
+    }
+  };
+
+  return (
+    <View>
+      <Button title="Save Video Link" onPress={saveVideoLink} />
+      {videoPath ? (
+        <View>
+          <Text>Stored Video Path:</Text>
+          <Text>{videoPath}</Text>
+          <Video
+            source={{ uri: videoPath }}
+            style={{ width: 300, height: 300 }}
+            controls
+            resizeMode="contain"
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+export default VideoManager;
